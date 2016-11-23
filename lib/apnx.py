@@ -36,15 +36,13 @@ class APNXBuilder(object):
                 ident = PdbHeaderReader(mf).identity()
                 if ident != 'BOOKMOBI':
                     # Check that this is really a MOBI file.
-                    print('ERROR! Not a valid MOBI file "%s"'
+                    print('BŁĄD! Niepoprawny plik MOBI "%s"'
                           % os.path.basename(mobi_file_path))
                     return 1
                 apnx_meta['acr'] = str(PdbHeaderReader(mf).name())
         except:
-            print('Error! Unable to open file %s' % mobi_file_path)
+            print('Błąd! Nie można otworzyć pliku %s' % mobi_file_path)
             return 1
-        # We'll need the PDB name, the MOBI version, and some metadata to make
-        # FW 3.4 happy with KF8 files...
         with open(mobi_file_path, 'rb') as mf:
             section = kindle_unpack.Sectionizer(mobi_file_path)
             mhlst = [kindle_unpack.MobiHeader(section, 0)]
@@ -70,7 +68,6 @@ class APNXBuilder(object):
             except KeyError:
                 apnx_meta['asin'] = ''
 
-        # Get the pages depending on the chosen parser
         pages = []
         if page_count:
             pages = self.get_pages_exact(mobi_file_path, page_count)
@@ -80,16 +77,14 @@ class APNXBuilder(object):
         if not pages:
             pages = self.get_pages_fast(mobi_file_path)
         if not pages:
-            print('Could not generate page mapping.')
+            print('Nie można wygenerować mapowania stron.')
         if len(pages) > 65536:
-            print('Pages over limit in "%s" file. '
-                  'Unable to write apnx file...' % mobi_file_path)
+            print('Ilośc stron w pliku in "%s" przekracza limit. '
+                  'Nie można zapisać pliku apnx...' % mobi_file_path)
             return
 
-        # Generate the APNX file from the page mapping.
         apnx = self.generate_apnx(pages, apnx_meta)
 
-        # Write the APNX.
         if sys.platform == 'win32':
             apnx_path = '\\\\?\\' + apnx_path.replace('/', '\\')
         with open(apnx_path, 'wb') as apnxf:
@@ -98,14 +93,9 @@ class APNXBuilder(object):
     def generate_apnx(self, pages, apnx_meta):
         apnx = ''
 
-        # Updated header if we have a KF8 file...
         if apnx_meta['format'] == 'MOBI_8':
             content_header = '{"contentGuid":"%(guid)s","asin":"%(asin)s","cdeType":"%(cdetype)s","format":"%(format)s","fileRevisionId":"1","acr":"%(acr)s"}' % apnx_meta  # noqa
         else:
-            # My 5.1.x Touch & 3.4 K3 seem to handle the 'extended' header
-            # fine for legacy mobi files, too. But, since they still handle
-            # this one too, let's try not to break old devices, and keep using
-            # the simple header ;).
             content_header = '{"contentGuid":"%(guid)s","asin":"%(asin)s","cdeType":"%(cdetype)s","fileRevisionId":"1"}' % apnx_meta  # noqa
         page_header = '{"asin":"%(asin)s","pageMap":"(1,a,1)"}' % apnx_meta
 
@@ -119,7 +109,6 @@ class APNXBuilder(object):
         apnx += struct.pack('>H', 32)
         apnx += page_header
 
-        # Write page values to APNX.
         for page in pages:
             apnx += struct.pack('>I', page)
 
@@ -147,7 +136,6 @@ class APNXBuilder(object):
             count += chars_per_page
 
         if len(pages) > page_count:
-            # Rounding created extra page entries
             pages = pages[:page_count]
 
         return pages

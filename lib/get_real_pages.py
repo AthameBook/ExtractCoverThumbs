@@ -1,14 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# This file is part of ExtractCoverThumbs, licensed under
-# GNU Affero GPLv3 or later.
-# Copyright © Robert Błaut. See NOTICE for more information.
-#
-# This script extracts missing Cover Thumbnails from eBooks downloaded
-# from Amazon Personal Documents Service and side loads them
-# to your Kindle Paperwhite.
-#
+
 from __future__ import print_function
 
 
@@ -136,7 +129,7 @@ def get_real_pages(csvfile, mark_real_pages):
                         row[1].lower() == 'pl' or row[1].lower() == 'pl-pl'
                     ):
                         continue
-                    print('* Searching for: ' + row[2].decode(
+                    print('* Szukam dla: ' + row[2].decode(
                           'UTF-8') + ' - ' + row[3].decode('UTF-8'))
                 except IndexError:
                     continue
@@ -155,16 +148,16 @@ def get_real_pages(csvfile, mark_real_pages):
                     if pages is not None:
                         row[4] = pages
                         row[5] = True
-                        print('  Book pages:', pages)
+                        print('  Liczba stron w książce:', pages)
                     elif book_type == 'E-book':
-                        print('  ! E-book format only! '
-                              'Using computed pages as real pages...')
+                        print('  ! Tylko format e-booków! '
+                              'Użyj obliczone numery stron jako prawdziwe...')
                         row[5] = True
                     else:
-                        print('  ! There are no page number set '
-                              'on the site: ' + book_url)
+                        print('  ! Nie są ustawione numery stron '
+                              'na stronie: ' + book_url)
                 elif mark_real_pages:
-                    print('  ! Marking computed pages as real pages...')
+                    print('  ! Oznacz obliczone numery stron jako prawdziwe...')
                     row[5] = True
 
                 with open(os.path.join(csvfile), 'wb') as f:

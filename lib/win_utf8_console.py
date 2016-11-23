@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 #
 
-
 def fix_broken_win_console():
     '''Fix broken Unicode support in Windows console.
     This code is lifted from Daira Hopwood's answer
@@ -16,34 +15,14 @@ def fix_broken_win_console():
 
     original_stderr = sys.stderr
 
-    # If any exception occurs in this code, we'll probably try to print it on
-    # stderr, which makes for frustrating debugging if stderr is directed to
-    # our wrapper. So be paranoid about catching errors and reporting them
-    # to original_stderr, so that we can at least see them.
-
     def _complain(message):
         print >>original_stderr, message if isinstance(
             message, str) else repr(message)
 
-    # Work around <http://bugs.python.org/issue6058>.
     codecs.register(lambda name: codecs.lookup(
         'utf-8') if name == 'cp65001' else None)
 
-    # Make Unicode console output work independently of the current code page.
-    # This also fixes <http://bugs.python.org/issue1602>.
-    # Credit to Michael Kaplan <http://www.siao2.com/2010/04/07/9989346.aspx>
-    # and TZOmegaTZIOY
-    # <http://stackoverflow.com/questions/878972/windows-cmd-encoding-change-causes-python-crash/1432462#1432462>.
     try:
-        # <http://msdn.microsoft.com/en-us/library/ms683231(VS.85).aspx>
-        # HANDLE WINAPI GetStdHandle(DWORD nStdHandle);
-        # returns INVALID_HANDLE_VALUE, NULL, or a valid handle
-        #
-        # <http://msdn.microsoft.com/en-us/library/aa364960(VS.85).aspx>
-        # DWORD WINAPI GetFileType(DWORD hFile);
-        #
-        # <http://msdn.microsoft.com/en-us/library/ms683167(VS.85).aspx>
-        # BOOL WINAPI GetConsoleMode(HANDLE hConsole, LPDWORD lpMode);
 
         GetStdHandle = WINFUNCTYPE(HANDLE, DWORD)((
             "GetStdHandle", windll.kernel32))
@@ -87,9 +66,6 @@ def fix_broken_win_console():
                 real_stderr = False
 
         if real_stdout or real_stderr:
-            # BOOL WINAPI WriteConsoleW(
-            #   HANDLE hOutput, LPWSTR lpBuffer, DWORD nChars,
-            #   LPDWORD lpCharsWritten, LPVOID lpReserved);
 
             WriteConsoleW = WINFUNCTYPE(
                 BOOL, HANDLE, LPWSTR, DWORD, POINTER(DWORD), LPVOID
@@ -111,8 +87,6 @@ def fix_broken_win_console():
                     return False
 
                 def close(self):
-                    # don't really close the handle, that would only cause
-                    # problems
                     self.closed = True
 
                 def fileno(self):
@@ -139,10 +113,6 @@ def fix_broken_win_console():
                             remaining = len(text)
                             while remaining:
                                 n = DWORD(0)
-                                # There is a shorter-than-documented
-                                # limitation on the length of the string
-                                # passed to WriteConsoleW (see:
-                                # <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1232>.
                                 retval = WriteConsoleW(
                                     self._hConsole, text,
                                     min(remaining, 10000), byref(n), None)
@@ -185,9 +155,6 @@ def fix_broken_win_console():
         _complain("exception %r while fixing up sys.stdout and sys.stderr" % (
             e,))
 
-    # While we're at it, let's unmangle the command-line arguments:
-
-    # This works around <http://bugs.python.org/issue2128>.
     GetCommandLineW = WINFUNCTYPE(LPWSTR)(("GetCommandLineW", windll.kernel32))
     CommandLineToArgvW = WINFUNCTYPE(
         POINTER(LPWSTR), LPCWSTR, POINTER(c_int)
@@ -199,12 +166,8 @@ def fix_broken_win_console():
     argv = [argv_unicode[i].encode('utf-8') for i in xrange(0, argc.value)]
 
     if not hasattr(sys, 'frozen'):
-        # If this is an executable produced by py2exe or bbfreeze, then it will
-        # have been invoked directly. Otherwise, unicode_argv[0] is the Python
-        # interpreter, so skip that.
         argv = argv[1:]
 
-        # Also skip option arguments to the Python interpreter.
         while len(argv) > 0:
             arg = argv[0]
             if not arg.startswith(u"-") or arg == u"-":
@@ -218,5 +181,4 @@ def fix_broken_win_console():
                 argv[0] = u'-c'
                 break
 
-    # if you like:
     sys.argv = argv

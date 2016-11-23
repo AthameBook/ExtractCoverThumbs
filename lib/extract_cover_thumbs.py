@@ -1,14 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-#
-# This file is part of ExtractCoverThumbs, licensed under
-# GNU Affero GPLv3 or later.
-# Copyright © Robert Błaut. See NOTICE for more information.
-#
-# This script extracts missing Cover Thumbnails from eBooks downloaded
-# from Amazon Personal Documents Service and side loads them
-# to your Kindle Paperwhite.
-#
 
 from __future__ import print_function
 import sys
@@ -29,12 +20,13 @@ from lib.get_real_pages import get_real_pages
 from lib.kfxmeta import get_kindle_kfx_metadata
 from lib.dualmetafix import DualMobiMetaFix
 
+maindir = os.path.dirname(sys.argv[0])
+
 SFENC = sys.getfilesystemencoding()
 try:
     from PIL import Image
 except ImportError as e:
     sys.exit('CRITICAL! ' + str(e).decode(SFENC))
-
 
 def clean_temp(sourcedir):
     for p in os.listdir(os.path.join(sourcedir, os.pardir)):
@@ -60,7 +52,7 @@ def asin_list_from_csv(mf):
             filelist = []
             for row in csvread:
                 try:
-                    if row[0] != '* NONE *':
+                    if row[0] != '* BRAK *':
                         asinlist.append(row[0])
                 except IndexError:
                     continue
@@ -86,20 +78,17 @@ def dump_pages(asinlist, filelist, mf, dirpath, fil):
     if row[6] in filelist:
         return
     with open(mf, 'ab') as o:
-        print('* Updating book pages CSV file...')
+        print('* Uaktualnienie pliku CSV...')
         csvwrite = csv.writer(o, delimiter=';', quotechar='"',
                               quoting=csv.QUOTE_ALL)
         csvwrite.writerow(row)
 
-
-# get_cover_image based on Pawel Jastrzebski <pawelj@vulturis.eu> work:
-# https://github.com/AcidWeb/KindleButler/blob/master/KindleButler/File.py
 def get_cover_image(section, mh, metadata, doctype, file, fide, is_verbose,
                     fix_thumb):
     try:
         cover_offset = metadata['CoverOffset'][0]
     except KeyError:
-        print('ERROR! No cover found in "%s"' % fide)
+        print('BŁĄD! Nie znaleziono okładki w "%s"' % fide.encode('utf8'))
         return False
     beg = mh.firstresource
     end = section.num_sections
@@ -144,12 +133,10 @@ def process_image(data, fix_thumb, doctype, is_verbose):
             "white"
         )
         pdoc_cover.paste(cover, (0, 0))
-        if is_verbose:
-            print('DONE!')
         return pdoc_cover
     else:
         if is_verbose:
-            print('DONE!')
+            print('GOTOWE!')
         return cover
 
 
@@ -164,21 +151,21 @@ def fix_generated_thumbs(file, is_verbose, fix_thumb):
         dpi = (96, 96)
     if dpi == (96, 96) and fix_thumb:
         if is_verbose:
-            print('* Fixing generated thumbnail "%s"...' % (file))
+            print('* Naprawa wygenerowanej miniatury "%s"...' % (file))
         pdoc_cover = Image.new("L", (cover.size[0], cover.size[1] + 45),
                                "white")
         pdoc_cover.paste(cover, (0, 0))
         pdoc_cover.save(file, dpi=[72, 72])
     elif dpi == (72, 72) and not fix_thumb:
         if is_verbose:
-            print('* Reverse fix for generated thumbnail "%s"...' % (file))
+            print('* Cofniecie naprawy wygenerowanej miniatury "%s"...' % (file))
         pdoc_cover = Image.new("L", (cover.size[0], cover.size[1] - 45),
                                "white")
         pdoc_cover.paste(cover, (0, 0))
         pdoc_cover.save(file, dpi=[96, 96])
     else:
         if is_verbose:
-            print('* Generated thumbnail "%s" is OK. DPI: %s. Skipping...'
+            print('* Wygenerowana miniatura "%s" jest OK. DPI: %s. Pomijam...'
                   % (os.path.basename(file), dpi))
     return False
 
@@ -195,7 +182,6 @@ def generate_apnx_files(docs, is_verbose, is_overwrite_apnx, days,
     for root, dirs, files in os.walk(docs):
         for name in files:
             if 'documents' + os.path.sep + 'dictionaries' in root:
-                print('! Excluded dictionary:', name)
                 continue
             mobi_path = os.path.join(root, name)
             if days is not None:
@@ -215,12 +201,12 @@ def generate_apnx_files(docs, is_verbose, is_overwrite_apnx, days,
                                          name)[0] + '.apnx')
                 if not os.path.isfile(apnx_path) or is_overwrite_apnx:
                     if is_verbose:
-                        print('* Generating APNX file for "%s"'
+                        print('* Generowanie pliku APNX dla "%s"'
                               % name.decode(sys.getfilesystemencoding()))
                         if os.path.isfile(os.path.join(
-                                tempdir, 'extract_cover_thumbs_book_pages2.csv')):
+                                tempdir, 'ect.csv')):
                             with open(os.path.join(
-                                    tempdir, 'extract_cover_thumbs_book_pages2.csv'
+                                    tempdir, 'ect.csv'
                             ), 'rb') as f1:
                                 csvread = csv.reader(
                                     f1, delimiter=';', quotechar='"',
@@ -229,7 +215,7 @@ def generate_apnx_files(docs, is_verbose, is_overwrite_apnx, days,
                                 with open(mobi_path, 'rb') as f2:
                                     mobi_content = f2.read()
                                 if mobi_content[60:68] != 'BOOKMOBI':
-                                    print('* Invalid file format. Skipping...')
+                                    print('* Nieprawidłowy formatpliku. Pomijam...')
                                     asin = ''
                                 else:
                                     asin = find_exth(113, mobi_content)
@@ -242,9 +228,7 @@ def generate_apnx_files(docs, is_verbose, is_overwrite_apnx, days,
                                             i[0] == '* NONE *' and i[6] == name
                                         ):
                                             print(
-                                                '  * Using %s pages defined in CSV'
-                                                ' file in Kindle/documents' % (
-                                                    i[4]))
+                                                '  * Użycie %s stron zdefiniowanych w pliku CSV' % (i[4]))
                                             apnx_builder.write_apnx(
                                                 mobi_path, apnx_path, int(i[4])
                                             )
@@ -254,9 +238,9 @@ def generate_apnx_files(docs, is_verbose, is_overwrite_apnx, days,
                                         continue
                                 if not found:
                                     print(
-                                        '  ! Book not found in '
-                                        'extract_cover_thumbs_book_pages2.csv.'
-                                        ' Fast algorithm used...')
+                                        '  ! Książka nie znaleziona w '
+                                        'ect.csv.'
+                                        ' Użycie szybkiego algorytmu...')
                                     apnx_builder.write_apnx(mobi_path, apnx_path)
                         else:
                             apnx_builder.write_apnx(mobi_path, apnx_path)
@@ -271,36 +255,31 @@ def extract_cover_thumbs(is_silent, is_overwrite_pdoc_thumbs,
     if days is not None:
         dtt = datetime.today()
         days_int = int(days)
-        print('Notice! Processing files not older than ' + days + ' days.')
+        print('Ostrzeżenie! Przetwarzanie plików nie starszych niż ' + days + ' dni.')
     else:
         days_int = 0
         diff = 0
 
-    # move CSV file to computer temp dir to speed up updating process
     tempdir = tempfile.mkdtemp(suffix='', prefix='extract_cover_thumbs-tmp-')
-    csv_pages_name = 'extract_cover_thumbs_book_pages2.csv'
+    csv_pages_name = 'ect.csv'
     csv_pages = os.path.join(tempdir, csv_pages_name)
-    if os.path.isfile(os.path.join(docs, csv_pages_name)):
-        shutil.copy2(os.path.join(docs, csv_pages_name),
+    if os.path.isfile(os.path.join(maindir, csv_pages_name)):
+        shutil.copy2(os.path.join(maindir, csv_pages_name),
                      os.path.join(tempdir, csv_pages_name))
 
-    # load ASIN list from CSV
     asinlist, filelist = asin_list_from_csv(csv_pages)
 
     if not os.path.isdir(os.path.join(kindlepath, 'system', 'thumbnails')):
-        print('* ERROR! No Kindle device found in the specified path: "' +
+        print('* BŁĄD! Nie znaleziono urządzenia Kindle w podanej ścieżce: "' +
               os.path.join(kindlepath) + '"')
         return 1
-    print("START of extracting cover thumbnails...")
+    print("ROZPOCZYNAM wydobywanie okładek...")
     if is_azw:
         extensions = ('.azw', '.azw3', '.mobi', '.kfx', '.azw8')
     else:
         extensions = ('.azw3', '.mobi', '.kfx', '.azw8')
     for root, dirs, files in os.walk(docs):
         for name in files:
-            if 'documents' + os.path.sep + 'dictionaries' in root:
-                print('! Excluded dictionary:', name)
-                continue
             if days is not None:
                 try:
                     dt = os.path.getctime(os.path.join(root, name))
@@ -325,13 +304,13 @@ def extract_cover_thumbs(is_silent, is_overwrite_pdoc_thumbs,
                     try:
                         kfx_metadata = get_kindle_kfx_metadata(mobi_path)
                     except Exception as e:
-                        print('ERROR! Extracting metadata from %s: %s' % (
+                        print('BŁĄD! Wyodrębnianie metadanych z %s: %s' % (
                             fide, unicode(e)
                         ))
                         continue
                     doctype = kfx_metadata.get("cde_content_type")
                     if not doctype:
-                        print('ERROR! No document type found in "%s"' % fide)
+                        print('BŁĄD! Brak typu dokumentu w "%s"' % fide)
                         continue
                     asin = kfx_metadata.get("ASIN")
                 else:
@@ -339,7 +318,7 @@ def extract_cover_thumbs(is_silent, is_overwrite_pdoc_thumbs,
                     with open(mobi_path, 'rb') as mf:
                         mobi_content = mf.read()
                         if mobi_content[60:68] != 'BOOKMOBI':
-                            print('* Not a valid MOBI file "%s".'
+                            print('* Nieprawidłowy plik MOBI "%s".'
                                   % fide)
                             continue
                     section = kindle_unpack.Sectionizer(mobi_path)
@@ -358,12 +337,12 @@ def extract_cover_thumbs(is_silent, is_overwrite_pdoc_thumbs,
                         doctype == 'PDOC' and
                         asin is not None and
                         name.lower().endswith('.azw3')):
-                    print("PATCHING AZW3", end=' ')
+                    print("POPRAWIANIE AZW3", end=' ')
                     dmf = DualMobiMetaFix(mobi_path)
                     open(mobi_path, 'wb').write(dmf.getresult())
                     doctype = 'EBOK'
                 if asin is None:
-                    print('ERROR! No ASIN found in "%s"' % fide)
+                    print('BŁĄD! Brak numeru ASIN w "%s"' % fide.encode('utf8'))
                     continue
                 thumbpath = os.path.join(
                     kindlepath, 'system', 'thumbnails',
@@ -377,10 +356,10 @@ def extract_cover_thumbs(is_silent, is_overwrite_pdoc_thumbs,
                     if is_kfx:
                         image_data = kfx_metadata.get("cover_image_data")
                         if not image_data:
-                            print('ERROR! No cover image found in "%s"' % fide)
-                            continue
+							print('BŁĄD! Nie znaleziono okładki w "%s"' % fide)
+							continue
                     if is_verbose:
-                        print('PROCESSING COVER:', end=' ')
+                        print('TWORZENIE OKŁADKI:', end=' ')
                     try:
                         if is_kfx:
                             cover = process_image(image_data.decode('base64'),
@@ -391,23 +370,23 @@ def extract_cover_thumbs(is_silent, is_overwrite_pdoc_thumbs,
                                                     doctype, name,
                                                     fide, is_verbose, fix_thumb)
                     except IOError:
-                        print('FAILED! Image format unrecognized...')
+                        print('Nie powiodło się! Nierozpoznany format obrazu...')
                         continue
                     if not cover:
                         continue
                     cover.save(thumbpath)
                 elif is_verbose:
-                    print('skipped (cover present or overwriting not forced).')
+                    print('Pominięto (okładka istnieje i nie wymuszono nadpisywania okładek).')
     if lubimy_czytac and days:
-        print("START of downloading real book page numbers...")
+        print("ROZPOCZYNAM pobieranie prawdziwych numerów stron...")
         get_real_pages(os.path.join(
-            tempdir, 'extract_cover_thumbs_book_pages2.csv'), mark_real_pages)
-        print("FINISH of downloading real book page numbers...")
+            tempdir, 'ect.csv'), mark_real_pages)
+        print("KONIEC pobierania prawdziwych numerów stron...")
     if not skip_apnx:
-        print("START of generating book page numbers (APNX files)...")
+        print("ROZPOCZYNAM generowanie numerów stron (plików APNX)...")
         generate_apnx_files(docs, is_verbose, is_overwrite_apnx,
                             days, tempdir)
-        print("FINISH of generating book page numbers (APNX files)...")
+        print("KONIEC generowania numerów stron (plików APNX)...")
 
     if is_overwrite_pdoc_thumbs:
         thumb_dir = os.path.join(kindlepath, 'system', 'thumbnails')
@@ -418,8 +397,15 @@ def extract_cover_thumbs(is_silent, is_overwrite_pdoc_thumbs,
                     continue
                 fix_generated_thumbs(os.path.join(thumb_dir, c),
                                      is_verbose, fix_thumb)
-    print("FINISH of extracting cover thumbnails...")
+    print("KONIEC wydobywania okładek...")
     shutil.copy2(os.path.join(tempdir, csv_pages_name),
-                 os.path.join(docs, csv_pages_name))
+                 os.path.join(maindir, csv_pages_name))
     clean_temp(tempdir)
+    
+    for root, dirs, files in os.walk(kindlepath, 'system', 'thumbnails'):
+        for name in files:
+            if name.lower().endswith('.partial'):
+				os.remove(kindlepath + 'system' + os.path.sep + 'thumbnails' + os.path.sep + name)
+				
+	
     return 0

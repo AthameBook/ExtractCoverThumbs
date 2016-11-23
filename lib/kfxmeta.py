@@ -126,24 +126,24 @@ METADATA_ENTITY_TYPES = {164, 258, 417, 490}
 def main():
     import argparse
     
-    parser = argparse.ArgumentParser(description='Extract data from a KFX, KDF or ION files (v' + VERSION + ')')
+    parser = argparse.ArgumentParser(description='Wyodrębnienie danych z pliku KFX, KDF lub ION (v' + VERSION + ')')
     action = parser.add_mutually_exclusive_group(required=True)
-    action.add_argument("-c", "--cover", action="store_true", help="List cover metadata from a Kindle document directory")
-    action.add_argument("-f", "--full", action="store_true", help="Dump all content of a .kfx, .kdf, or .ion file as .json")
-    action.add_argument("-m", "--metadata", action="store_true", help="Dump book metadata from a .kfx file as .json")
-    parser.add_argument("pathname", help="Pathname to be processed")
+    action.add_argument("-c", "--cover", action="store_true", help="Lista metadanych okładek z katalogu documentów Kindle")
+    action.add_argument("-f", "--full", action="store_true", help="Zrzut całej zawartości pliku .kfx, .kdf, lub .ion jako .json")
+    action.add_argument("-m", "--metadata", action="store_true", help="Zrzut metadanych książki z pliku .kfx jako .json")
+    parser.add_argument("pathname", help="Ścieżka do przetworzenia")
     args = parser.parse_args()
     
     if not os.path.exists(args.pathname):
-        print('%s does not exist' % args.pathname)
+        print('%s nie istnieje' % args.pathname)
         return
             
     if args.cover:
         if not os.path.isdir(args.pathname):
-            print('%s is not a directory' % args.pathname)
+            print('%s nie jest katalogiem' % args.pathname)
             return
             
-        print('Cover metadata from Kindle directory: %s' % args.pathname)
+        print('Metadane okładki z katalogu Kindle: %s' % args.pathname)
         
         for fn in sorted(os.listdir(args.pathname)):
             if fn.endswith('.kfx'):
@@ -154,14 +154,14 @@ def main():
                                 metadata.get("ASIN"), "cover_image_data" in metadata))
                                 
                 except Exception as e:
-                    print('%s: Exception -- %s' % (fn, unicode(e)))
+                    print('%s: Wyjątek -- %s' % (fn, unicode(e)))
                 
     elif args.full or args.metadata:
         if not os.path.isfile(args.pathname):
-            print('%s is not a file' % args.pathname)
+            print('%s nie jest plikiem' % args.pathname)
             return
             
-        print('Decoding: %s' % args.pathname)
+        print('Odkodowanie: %s' % args.pathname)
         
         if args.pathname.endswith('.kdf'):
             data = KDFDatabase(args.pathname).decode()
@@ -175,7 +175,7 @@ def main():
             elif packed_data[0:8] == DRMION_MAGIC:
                 data = PackedIon(packed_data[8:-8]).decode_list()
             else:
-                print('%s does not appear to be KFX, KDF or ION' % args.pathname)
+                print('%s nie wydaje się być KFX, KDF lub ION' % args.pathname)
                 return
             
         if args.metadata:
@@ -183,7 +183,7 @@ def main():
         
         outfile = os.path.splitext(args.pathname)[0] + '.json'
         write_file(outfile, json_dump(data, sort_keys=args.metadata))
-        print('Extracted data to JSON file "%s"' % outfile)
+        print('Wydobywanie danych do pliku JSON "%s"' % outfile)
         
     else:
         print('No processing option specified. See --help')
@@ -512,7 +512,7 @@ class PackedIon(PackedData):
             return TypedData(type_, id, value)
        
         
-        print("encountered unknown data type %d" % data_type)
+        print("Nieznany typ danych %d" % data_type)
         self.advance(data_len)    
         return None
         
